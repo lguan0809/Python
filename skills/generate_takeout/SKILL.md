@@ -1,13 +1,37 @@
 Name: generate_takeout_notes
+Version: 0.1.0
+Author: Lin Guan
+Tags: education, docs, analysis
+MinPython: 3.6
 
 # Skill: generate_takeout_notes
 
 Description
 - Create beginner-focused "takeout" notes for a given Python file. The notes must explain Python grammar used in the file, give a clear, step-by-step explanation of any algorithmic logic (recurrence/DP/complexity), provide small runnable code examples (memoized and iterative where relevant), and include commands to run and test the code. Tone: beginner-friendly, concise, and actionable.
 
-Inputs
-- `file_path` (required): workspace-relative path to the Python file to analyze (e.g., `strings/edit_distance.py`).
-- `target_folder` (optional): where to save notes; default: same directory as the source under `.../notes/`.
+Inputs (machine-friendly)
+- `file_path` — Type: `string` — Required: `true` — Description: workspace-relative path to the Python file to analyze (example: `strings/edit_distance.py`).
+- `target_folder` — Type: `string` — Required: `false` — Default: `./notes/` under the source file's directory — Description: where to save generated notes. If omitted, notes are saved to a `notes` subfolder alongside the source.
+- `beginner` — Type: `boolean` — Required: `false` — Default: `true` — Description: when true, produce extra beginner-friendly explanations and small examples.
+
+Invocation / Example
+- Example inputs (YAML-like):
+
+```yaml
+file_path: "strings/edit_distance.py"
+target_folder: "strings/notes"
+beginner: true
+```
+
+The skill is expected to be invoked with the above inputs and will return the path to the generated notes file.
+
+Outputs / Artifacts
+- Description: A Markdown notes file describing the file's purpose, Python grammar, detailed algorithm notes (recurrence/pseudocode, complexity, memoized and iterative examples), improvements/exercises, and run/test commands.
+- Filename pattern: `<source_basename>_takeout.md` (for `strings/edit_distance.py` the file will be `strings/notes/edit_distance_takeout.md`).
+
+Examples
+- Input `strings/edit_distance.py` → create `strings/notes/edit_distance_takeout.md` containing purpose, detailed grammar section, detailed algorithm section (recurrence, DP, memoized and iterative examples), run commands, and exercises.
+
 - `beginner` (optional, default true): when true, use extra explanation and simple examples.
 
 Behavior / Steps the agent must follow
