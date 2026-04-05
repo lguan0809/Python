@@ -15,46 +15,76 @@
   - `source[:-1]` returns all characters except the last one (slice up to but not including index -1).
   - Slices create new strings; they do not modify the original string (strings are immutable).
 
-- **Conditional statements**:
-  - `if`, `elif`, `else` control flow. Base cases are handled with `if len(source) == 0:` and `elif len(target) == 0:`.
+**Algorithm Notes (detailed)**
 
-- **Built-in functions & conversions**:
-  - `len(x)` returns length of sequence `x`.
-  - `min(a, b, c)` returns the smallest of its arguments.
-  - `int(True)` -> `1`, `int(False)` -> `0`; in the code, `int(source[-1] != target[-1])` converts a boolean equality check into 0/1 cost.
+- **What the algorithm computes**: the Levenshtein (edit) distance is the minimum number of single-character insertions, deletions, or substitutions required to transform `source` into `target`. Each operation here costs `1`.
 
-- **Comments**: Lines starting with `#` are ignored at runtime and explain code intent.
+- **Recurrence relation**: let `ED(i, j)` be the edit distance between the prefixes `source[:i]` and `target[:j]` (i.e., first `i` and `j` characters).
+  - Base cases:
+    - `ED(0, j) = j` (transform empty source into `j` characters by `j` insertions).
+    - `ED(i, 0) = i` (transform `i` characters into empty target by `i` deletions).
+  - Recursive step (for i, j > 0):
+    - `cost = 0 if source[i-1] == target[j-1] else 1`
+    - `ED(i, j) = min(ED(i-1, j-1) + cost, ED(i, j-1) + 1, ED(i-1, j) + 1)`
+      - `ED(i-1, j-1) + cost` → substitute or match last character
+      - `ED(i, j-1) + 1` → insert into `source` (or delete from `target`)
+      - `ED(i-1, j) + 1` → delete from `source`
 
-- **Variables & assignment**: `delta = ...` binds a value to the name `delta`. Python uses dynamic typing: a variable can hold values of any type.
+- **How the recursive code maps to the relation**: the implementation uses full strings and slices instead of indices:
+  - `edit_distance(source[:-1], target[:-1]) + delta` corresponds to `ED(i-1, j-1) + cost`.
+  - `edit_distance(source, target[:-1]) + 1` corresponds to `ED(i, j-1) + 1` (insert).
+  - `edit_distance(source[:-1], target) + 1` corresponds to `ED(i-1, j) + 1` (delete).
 
-- **Recursion**: The function calls itself with smaller inputs (`source[:-1]`, `target[:-1]`). Important points:
-  - Every recursive function needs base cases to stop recursion, otherwise you'll get a `RecursionError`.
-  - Recursion uses the call stack; deep recursion may hit recursion limits. Use iterative approaches or increase recursion limit only when necessary.
+- **Trace example (small)**: compute `edit_distance('ab', 'ac')`:
+  1. Compare last chars: `'b'` vs `'c'` → `cost = 1`.
+  2. Evaluate three options:
+     - substitute: `ED('a','a') + 1` → `0 + 1 = 1`
+     - insert: `ED('ab','a') + 1` → `1 + 1 = 2`
+     - delete: `ED('a','ac') + 1` → `1 + 1 = 2`
+  3. Minimum is `1` → one substitution.
 
-- **Standard library & modules**: To improve this function you might import `functools` and use `@functools.lru_cache(maxsize=None)` above the function to memoize results. Use `typing` for more complex type hints like `Optional[str]` or `Tuple[int, ...]`.
+- **Correctness (intuition)**: any optimal edit sequence that transforms the full strings must perform one of the three last operations affecting the final character(s): match/substitute, insert, or delete. Considering all three and taking the minimum recursively yields the optimal value.
 
-- **String immutability**: Strings cannot be changed in place. Slicing and concatenation produce new strings.
+- **Complexity**:
+  - Naive recursion: exponential time due to overlapping subproblems (many repeated calls), roughly O(3^(max(n,m))).
+  - With memoization (top-down DP): O(n*m) time and O(n*m) space, where `n = len(source)`, `m = len(target)`.
+  - Iterative DP (bottom-up): also O(n*m) time and O(n*m) space; with optimized row-wise implementation you can reduce space to O(min(n,m)).
 
-- **Error handling & edge cases**: This function assumes inputs are strings. In production code, you might add argument validation (e.g., `if not isinstance(source, str): raise TypeError(...)`).
+- **Memoization (practical fix)**: use `functools.lru_cache` to cache results of calls. Example:
 
-- **Readability**: Use descriptive variable names and short functions. Docstrings and inline comments help others (and future you) understand intent.
+```py
+from functools import lru_cache
 
-**Algorithm Notes**
-- Base cases: if one string is empty, cost = length of the other (all inserts/deletes).
-- Recursive cases (three choices):
-  - Substitute: `edit_distance(source[:-1], target[:-1]) + delta` (delta = 0 if last chars equal else 1).
-  - Insert: `edit_distance(source, target[:-1]) + 1`.
-  - Delete: `edit_distance(source[:-1], target) + 1`.
-- Chooses `min(...)` of the three costs.
-- Complexity: naive recursive version has exponential time due to overlapping subproblems. Use memoization or iterative DP for O(n*m) time.
+@lru_cache(maxsize=None)
+def edit_distance_cached(s: str, t: str) -> int:
+    if not s: return len(t)
+    if not t: return len(s)
+    delta = int(s[-1] != t[-1])
+    return min(
+        edit_distance_cached(s[:-1], t[:-1]) + delta,
+        edit_distance_cached(s, t[:-1]) + 1,
+        edit_distance_cached(s[:-1], t) + 1,
+    )
+```
 
-**Improvements / Exercises**
-- Add `@functools.lru_cache` to memoize recursive calls.
-- Rewrite iteratively using a 2D matrix to learn dynamic programming.
-- Modify operation costs (weighted edit distance) and test behavior.
-- Run doctests: `python -m doctest -v strings/edit_distance.py`.
+- **Iterative DP (bottom-up)**: build a (n+1) x (m+1) matrix `dp` where `dp[i][j] = ED(i, j)`; fill base rows/columns then compute row-by-row using the recurrence. Pseudocode:
 
-**Applications**
-- Spell checking, fuzzy string matching, DNA sequence comparison, diff tools.
+```text
+initialize dp matrix of size (n+1) x (m+1)
+for i in 0..n: dp[i][0] = i
+for j in 0..m: dp[0][j] = j
+for i in 1..n:
+  for j in 1..m:
+    cost = 0 if source[i-1] == target[j-1] else 1
+    dp[i][j] = min(dp[i-1][j-1] + cost, dp[i][j-1] + 1, dp[i-1][j] + 1)
+return dp[n][m]
+```
 
--- Short, focused notes to practice Python grammar and algorithmic thinking.
+- **Testing & edge cases**:
+  - Empty strings, identical strings, case sensitivity (`'a'` vs `'A'`).
+  - Non-string inputs: consider input validation in production code.
+
+- **Practical tips**:
+  - For long strings, prefer the iterative DP or memoized version.
+  - For space optimization, compute only two rows at a time (previous and current), giving O(min(n,m)) space.
+  - Use doctests and small traced examples to build intuition.
